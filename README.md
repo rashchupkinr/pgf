@@ -1,2 +1,2 @@
 # pgf
-Context-adaptive image codec
+Lossless image compression codec
