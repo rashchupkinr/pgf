@@ -1,10 +1,11 @@
 #include <math.h>
 #include "pmed.h"
-
+#include "logging.h"
 #define PMED_PROB 0.3
 
 PDistrib PMed::predict(int x, int y)
 {
+	Image *img = yuvimage->getPlane(plane);
 	if (!img || x<0 || x>=img->getWidth() || y<0 || y>=img->getHeight())
 		return PDistrib::getNullPD();
 	PDistrib pd = PDistrib::getNullPD();
@@ -48,7 +49,6 @@ PDistrib PMed::predict(int x, int y)
 		if (v > max)
 			max = v;
 	}
-
 	if (!n)
 		return pd;
 	val /= n;
@@ -60,7 +60,7 @@ PDistrib PMed::predict(int x, int y)
 	if (radius > img->getMaxValue() - val)
 		radius = img->getMaxValue() - val;
 
-	if (n>2)
+//	if (n>0)
 		pd.addSpikeEllipse(val, radius, PMED_PROB);
 	return pd;
 }

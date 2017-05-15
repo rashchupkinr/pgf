@@ -3,6 +3,7 @@
 
 #include <vector>
 #include <map>
+#include "logging.h"
 
 using namespace std;
 
@@ -28,11 +29,24 @@ public:
 	static PDistrib getUniformPD(int MaxVal);
 
 	string print() const;
+	static void initUniformPD(int MaxVal) {
+		UMaxVal = MaxVal;
+		for (int i=0; i<=MaxVal; i++)
+			UniformPD.set(i, 1.0/MaxVal);
+		UniformPD.sort();
+		UniformPD.normalize();
+	}
 private:
 	map<long, double> pdistrib;
 	vector<pair<long, double> > psorted;
 	static pair<long, double> nullp;
 	static PDistrib NullPD;
+	static PDistrib UniformPD;
+	static int UMaxVal;
 };
 
+typedef struct _PDistribWeight {
+	PDistrib pd;
+	float weight;
+} PDistribWeight;
 #endif

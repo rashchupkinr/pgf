@@ -9,6 +9,7 @@
 
 PDistrib PSim::predict(int x, int y)
 {
+	Image *img = yuvimage->getPlane(plane);
 	if (!img || x-1<0 || x+1>=img->getWidth() || y-1<0 || y>=img->getHeight())
 		return PDistrib::getNullPD();
 	int Diff = getPredParam().SpikeRadius;

@@ -4,6 +4,8 @@
 #include "logging.h"
 
 PDistrib PDistrib::NullPD;
+int PDistrib::UMaxVal;
+PDistrib PDistrib::UniformPD;
 pair<long, double> PDistrib::nullp;
 
 PDistrib::PDistrib()
@@ -163,6 +165,7 @@ void PDistrib::addSpikeLinear(long V, unsigned long radius, double P)
 
 void PDistrib::addSpikeEllipse(long V, unsigned long radius, double P)
 {
+
 	double baseP = P/(2*radius);
 	int v = V-radius;
 	if (v < 0)
@@ -179,6 +182,8 @@ void PDistrib::addSpikeEllipse(long V, unsigned long radius, double P)
 
 PDistrib PDistrib::getUniformPD(int MaxVal)
 {
+	if (MaxVal == UMaxVal)
+		return UniformPD;
 	PDistrib uniformPD;
 	for (int i=0; i<=MaxVal; i++)
 		uniformPD.set(i, 1.0/MaxVal);

@@ -10,6 +10,7 @@
 #include <stdio.h>
 #include <time.h>
 #include "logging.h"
+#include "image.h"
 
 FILE *LogFile=0;
 int LogPriority = LOG_ALL;

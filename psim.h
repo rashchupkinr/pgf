@@ -6,7 +6,7 @@
 class PSim : public Predictor
 {
 public:
-	PSim(Image *_img): Predictor(_img, 0)	{}
+	PSim(YUVImage *_img, int _plane = -1): Predictor(_img, 0, _plane)	{}
 	PDistrib predict(int x, int y);
 private:
 };

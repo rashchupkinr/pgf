@@ -7,7 +7,7 @@
 
 #include <math.h>
 #include <stdlib.h>
-#include "pgfcoder.h"
+#include "pgfpcoder.h"
 #include "image.h"
 #include "logging.h"
 #include "hcoder.h"
@@ -20,8 +20,16 @@ using namespace std;
 
 extern void signal_stats(int signal);
 
+int getHighBit(int v)
+{
+	for (int i=31;i>0;i--)
+		if (v & 1<<i)
+			return i;
+	return 0;
+}
 
-void PGFCoder::remove_edges()
+
+void PGFPCoder::remove_edges()
 {
 	edge_image = new YUVImage(cur_image);
 	for (int k=0; k<yuvimage->getPlaneNum(); k++) {
@@ -37,7 +45,7 @@ void PGFCoder::remove_edges()
 	}
 }
 
-int PGFCoder::encode(int trim)
+int PGFPCoder::encode(int trim)
 {
 	PDistrib::initUniformPD(yuvimage->getPlane(0)->getMaxValue());
 	for (int k=0; k<PREDICTOR_NUM; k++) {
@@ -46,23 +54,34 @@ int PGFCoder::encode(int trim)
 			pds[k][i] = new PDistribWeight[yuvimage->getWidth(i)*yuvimage->getHeight(i)];
 	}
 
-	dlog(LOG_NORMAL, "\nencode\n");
-	PMed pMed = PMed(yuvimage, PREDICTOR_DIR_NUM);
-	PEqual pEqual[PREDICTOR_DIR_NUM] = {	PEqual(yuvimage, PREDICTOR_DIR_L),
-											PEqual(yuvimage, PREDICTOR_DIR_LU),
-											PEqual(yuvimage, PREDICTOR_DIR_U),
-											PEqual(yuvimage, PREDICTOR_DIR_RU)};
-	PLinear pLinear[PREDICTOR_DIR_NUM] = {	PLinear(yuvimage, PREDICTOR_DIR_L),
-											PLinear(yuvimage, PREDICTOR_DIR_LU),
-											PLinear(yuvimage, PREDICTOR_DIR_U),
-											PLinear(yuvimage, PREDICTOR_DIR_RU)};
-	PSim pSim = PSim(yuvimage);
+	for (int i=0; i<yuvimage->getPlaneNum(); i++) {
+		int ret = encode_plane(i, trim);
+		if (ret < 0)
+			return ret;
+	}
+	return 0;
+}
+
+int PGFPCoder::encode_plane(int pnum, int trim)
+{
+	dlog(LOG_NORMAL, "\nencode_plane %d\n", pnum);
+	Image *img = yuvimage->getPlane(pnum);
+	PMed pMed = PMed(yuvimage, PREDICTOR_DIR_NUM, pnum);
+	PEqual pEqual[PREDICTOR_DIR_NUM] = {	PEqual(yuvimage, PREDICTOR_DIR_L, pnum),
+											PEqual(yuvimage, PREDICTOR_DIR_LU, pnum),
+											PEqual(yuvimage, PREDICTOR_DIR_U, pnum),
+											PEqual(yuvimage, PREDICTOR_DIR_RU, pnum)};
+	PLinear pLinear[PREDICTOR_DIR_NUM] = {	PLinear(yuvimage, PREDICTOR_DIR_L, pnum),
+											PLinear(yuvimage, PREDICTOR_DIR_LU, pnum),
+											PLinear(yuvimage, PREDICTOR_DIR_U, pnum),
+											PLinear(yuvimage, PREDICTOR_DIR_RU, pnum)};
+	PSim pSim = PSim(yuvimage, pnum);
 //	hcoder hc;
-	for (int y=0; y<yuvimage->getHeight(0); y++) {
+	for (int y=0; y<img->getHeight(); y++) {
 		float bits_row = 0;
-		for (int x=0; x<yuvimage->getWidth(0); x++) {
-			dlog(LOG_ALL, "e[%d,%d]=%s\n",  y, x, yuvimage->get(x, y).print().c_str());
-			PDistrib pd = PDistrib::getUniformPD(yuvimage->getMaxValue());
+		for (int x=0; x<img->getWidth(); x++) {
+			dlog(LOG_ALL, "%d e[%d,%d]=%d\n", pnum, y, x, img->get(x, y));
+			PDistrib pd = PDistrib::getUniformPD(img->getMaxValue());
 			{
 				PDistrib pdMed = pMed.predict(x, y);
 //				pds[PREDICTOR_MED][pnum][y*img->getWidth()+x].pd = pdMed;
@@ -92,7 +111,7 @@ int PGFCoder::encode(int trim)
 				pd = pd + pdSim;
 				dlog(LOG_ALL,"pds %s\n", pdSim.print().c_str());
 			}
-			yuvimage->setPD(x, y, pd);
+			img->setPD(x, y, pd);
 
 			/*
 			pd.sort();
@@ -125,19 +144,20 @@ int PGFCoder::encode(int trim)
 		}
 		dlog(LOG_NORMAL, "r%d ", y);
 	}
-	encode_PDs();
+	encode_plane_PDs(pnum);
 	return 0;
 }
 
-int PGFCoder::encode_PDs()
+int PGFPCoder::encode_plane_PDs(int pnum)
 {
-	dlog(LOG_NORMAL, "\nencode_plane_PDs\n");
+	Image *img = yuvimage->getPlane(pnum);
+	dlog(LOG_NORMAL, "\nencode_plane_PDs %d\n", pnum);
 	hcoder hc;
-	for (int y=0; y<yuvimage->getHeight(0); y++) {
+	for (int y=0; y<img->getHeight(); y++) {
 		float bits_row = 0;
-		for (int x=0; x<yuvimage->getWidth(0); x++) {
-			dlog(LOG_ALL, "w[%d,%d]\n", y, x);
-			PDistrib pd = yuvimage->getPD(x, y);
+		for (int x=0; x<img->getWidth(); x++) {
+			dlog(LOG_ALL, "%d w[%d,%d]\n", pnum, y, x);
+			PDistrib pd = img->getPD(x, y);
 			pd.sort();
 		//			continue;
 			pd.normalize();
@@ -150,18 +170,18 @@ int PGFCoder::encode_PDs()
 				return -1;
 			}
 		//hc.dump();
-			bitarr code = hc.encode(yuvimage->get(x, y));
+			bitarr code = hc.encode(img->get(x, y));
 			codes->append(code);
 			bits_row += code.size();
 
-			dlog(LOG_ALL,"coded[%d,%d] %s_%s|%d|\n", y, x, yuvimage->get(x,y).print().c_str(), code.print().c_str(),codes->size());
+			dlog(LOG_ALL,"coded[%d,%d] %d_%s|%d|\n", y, x, img->get(x,y), code.print().c_str(),codes->size());
 			//		dlog(LOG_NORMAL, "r%d{%.2f} ", y, bits_row/img->getWidth());
 		}
-		dlog(LOG_NORMAL, "R%d{%.2f} ", y, bits_row/yuvimage->getWidth(0));
+		dlog(LOG_NORMAL, "R%d{%.2f} ", y, bits_row/img->getWidth());
 	}
 }
 
-int PGFCoder::decode(FILE *fout)
+int PGFPCoder::decode(FILE *fout)
 {
 	PDistrib::initUniformPD(yuvimage->getPlane(0)->getMaxValue());
 	decode_pos = 0;
@@ -173,19 +193,19 @@ int PGFCoder::decode(FILE *fout)
 	return 0;
 }
 
-int PGFCoder::decode_plane(int pnum, FILE *fout)
+int PGFPCoder::decode_plane(int pnum, FILE *fout)
 {
 	Image *img = yuvimage->getPlane(pnum);
-	PMed pMed = PMed(yuvimage, PREDICTOR_DIR_NUM);
-	PEqual pEqual[PREDICTOR_DIR_NUM] = {	PEqual(yuvimage, PREDICTOR_DIR_L),
-											PEqual(yuvimage, PREDICTOR_DIR_LU),
-											PEqual(yuvimage, PREDICTOR_DIR_U),
-											PEqual(yuvimage, PREDICTOR_DIR_RU)};
-	PLinear pLinear[PREDICTOR_DIR_NUM] = {	PLinear(yuvimage, PREDICTOR_DIR_L),
-											PLinear(yuvimage, PREDICTOR_DIR_LU),
-											PLinear(yuvimage, PREDICTOR_DIR_U),
-											PLinear(yuvimage, PREDICTOR_DIR_RU)};
-	PSim pSim = PSim(yuvimage);
+	PMed pMed = PMed(yuvimage, PREDICTOR_DIR_NUM, pnum);
+	PEqual pEqual[PREDICTOR_DIR_NUM] = {	PEqual(yuvimage, PREDICTOR_DIR_L, pnum),
+											PEqual(yuvimage, PREDICTOR_DIR_LU, pnum),
+											PEqual(yuvimage, PREDICTOR_DIR_U, pnum),
+											PEqual(yuvimage, PREDICTOR_DIR_RU, pnum)};
+	PLinear pLinear[PREDICTOR_DIR_NUM] = {	PLinear(yuvimage, PREDICTOR_DIR_L, pnum),
+											PLinear(yuvimage, PREDICTOR_DIR_LU, pnum),
+											PLinear(yuvimage, PREDICTOR_DIR_U, pnum),
+											PLinear(yuvimage, PREDICTOR_DIR_RU, pnum)};
+	PSim pSim = PSim(yuvimage, pnum);
 	hcoder hc;
 	for (int y=0; y<img->getHeight(); y++) {
 		for (int x=0; x<img->getWidth(); x++) {
@@ -260,7 +280,7 @@ int PGFCoder::decode_plane(int pnum, FILE *fout)
 	return 0;
 }
 
-void PGFCoder::test_edge()
+void PGFPCoder::test_edge()
 {
 	std::vector<edge> edges;
 	cur_image = new YUVImage(yuvimage);
@@ -271,7 +291,7 @@ void PGFCoder::test_edge()
 	dlog_block(LOG_NORMAL, img, 0, 0, 8, 8);
 }
 
-PGFCoder::PGFCoder()
+PGFPCoder::PGFPCoder()
 : yuvimage(0),
   cur_image(0),
   edge_image(0),
@@ -281,7 +301,7 @@ PGFCoder::PGFCoder()
 	codes = new bitarr();
 }
 
-PGFCoder::~PGFCoder()
+PGFPCoder::~PGFPCoder()
 {
 /*	if (coef && yuvimage) {
 		delete coef;

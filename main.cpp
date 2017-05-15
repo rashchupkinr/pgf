@@ -8,6 +8,7 @@
 #include <signal.h>
 #include <unistd.h>
 #include "logging.h"
+#include "pgfpcoder.h"
 #include "pgfcoder.h"
 #include "yuvimage.h"
 #include "bitarr.h"
@@ -136,15 +137,15 @@ int main(int argc, char *argv[])
 			dlog(LOG_FATAL,"diff =%f\n",inp->diff(inp2));
 		}
 	} else {
+		FILE *fout = fopen(output_name, "w");
 		bitarr codes;
 		codes.read(fin);
 		coder.setCodes(&codes);
 		YUVImage *yuv = new YUVImage(YUV444, width, height);
 		coder.setYUVImage(yuv);
-		coder.decode();
-		FILE *fout = fopen(output_name, "w");
+		coder.decode(fout);
 		YUVImage *outp = coder.getYUVImage();
-		outp->write(fout);
+//		outp->write(fout);
 	}
 }
 

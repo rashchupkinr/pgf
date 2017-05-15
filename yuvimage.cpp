@@ -36,6 +36,10 @@ int YUVImage::putPoint(int plane, int x, int y, int value)
 		Cb->data[y*getWidth(plane)+x] = value;
 		break;
 	}
+	c3x c = get(x, y);
+	c.seti(plane, value);
+	set(x, y, c);
+
 	return 0;
 }
 
@@ -157,6 +161,41 @@ int YUVImage::write(FILE *f)
 	return 0;
 }
 
+int YUVImage::writeRow(FILE *f, int pnum, int row)
+{
+	if (width == 0 || height == 0)
+		return -1;
+	if (!f)
+		return -1;
+	int nframe = 0;
+	size_t offset = 0;
+	if (pnum > 0)
+		offset += getWidth(PLANE_LUM)*getHeight(PLANE_LUM);
+	if (pnum > 1)
+		offset += getWidth(PLANE_CR)*getHeight(PLANE_CR);
+	offset += row*getWidth(pnum);
+	if (fseek(f, offset, SEEK_SET))
+		return -1;
+	switch (pnum) {
+	case PLANE_LUM:
+		for (int i=0; i<getWidth(pnum); i++)
+			crow[i] = lum->data[row*getWidth(pnum) + i];
+		break;
+	case PLANE_CR:
+		for (int i=0; i<getWidth(pnum); i++)
+			crow[i] = Cr->data[row*getWidth(pnum) + i];
+		break;
+	case PLANE_CB:
+		for (int i=0; i<getWidth(pnum); i++)
+			crow[i] = Cb->data[row*getWidth(pnum) + i];
+		break;
+	}
+	if (fwrite(crow, sizeof(char), getWidth(pnum), f) !=
+			getWidth(pnum) * sizeof(char))
+		return -1;
+	return 0;
+}
+
 YUVImage::YUVImage(YUV_FORMAT _yuvformat, size_t _width, size_t _height)
 : yuvformat(_yuvformat),
   width(_width),
@@ -168,6 +207,7 @@ YUVImage::YUVImage(YUV_FORMAT _yuvformat, size_t _width, size_t _height)
 	clum = new unsigned char[getWidth(PLANE_LUM) * getHeight(PLANE_LUM)];
 	cCr = new unsigned char[getWidth(PLANE_CR) * getHeight(PLANE_CR)];
 	cCb = new unsigned char[getWidth(PLANE_CB) * getHeight(PLANE_CB)];
+	crow = new unsigned char[getWidth(PLANE_LUM) * getHeight(PLANE_LUM)];
 }
 
 YUVImage::YUVImage(YUV_FORMAT _yuvformat, CIF_FORMAT _cifformat)
@@ -209,4 +249,5 @@ YUVImage::~YUVImage()
 	delete []clum;
 	delete []cCr;
 	delete []cCb;
+	delete []crow;
 }

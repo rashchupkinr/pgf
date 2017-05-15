@@ -5,8 +5,8 @@
  *      Author: roman
  */
 
-#ifndef PGFCODER_H_
-#define PGFCODER_H_
+#ifndef PGFPCODER_H_
+#define PGFPCODER_H_
 
 #include <stdio.h>
 #include "yuvimage.h"
@@ -15,21 +15,17 @@
 #include "bitarr.h"
 
 
-class PGFCoder {
+class PGFPCoder {
 public:
-	PGFCoder();
-	virtual ~PGFCoder();
-	void setYUVImage(YUVImage *_yuvimage)
-	{
-		if (_yuvimage->getYUVFormat() != YUV444)
-			return;
-		yuvimage = _yuvimage;
-	}
+	PGFPCoder();
+	virtual ~PGFPCoder();
+	void setYUVImage(YUVImage *_yuvimage)		{	yuvimage = _yuvimage;	}
 	YUVImage *getYUVImage()						{	return yuvimage;		}
 	bitarr *getCodes()							{	return codes;			}
 	void setCodes(bitarr *_codes)				{	codes = _codes;			}
 	int encode(int trim);
-	int encode_PDs();
+	int encode_plane(int pnum, int trim);
+	int encode_plane_PDs(int pnum);
 	int decode(FILE *fout = 0);
 	int decode_plane(int pnum,FILE *fout = 0);
 	YUVImage *getCurImage()						{	return cur_image;		}

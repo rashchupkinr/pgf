@@ -2,6 +2,7 @@
 
 PDistrib PLinear::predict(int x, int y)
 {
+	Image *img = yuvimage->getPlane(plane);
 	if (!img || x<0 || x>=img->getWidth() || y<0 || y>=img->getHeight())
 		return PDistrib::getNullPD();
 	PDistrib pd = PDistrib::getNullPD();

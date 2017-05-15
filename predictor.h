@@ -1,7 +1,7 @@
 #ifndef __PREDICTOR__
 #define __PREDICTOR__
 
-#include "image.h"
+#include "yuvimage.h"
 #include "pdistrib.h"
 
 #define PREDICTOR_DIR_L			0
@@ -23,12 +23,13 @@ struct PredParam {
 
 class Predictor {
 public:
-	Predictor(Image *_img, int _dir);
+	Predictor(YUVImage *_img, int _dir, int _plane = 0);
 	virtual PDistrib predict(int x, int y);
 	PredParam getPredParam();
 protected:
 	int dir;
-	Image *img;
+	YUVImage *yuvimage;
+	int plane;
 };
 
 #endif

@@ -6,7 +6,7 @@
 class PLinear : public Predictor
 {
 public:
-	PLinear(Image *_img, int _dir): Predictor(_img, _dir)	{}
+	PLinear(YUVImage *_img, int _dir, int _plane = -1): Predictor(_img, _dir, _plane)	{}
 	PDistrib predict(int x, int y);
 private:
 };
