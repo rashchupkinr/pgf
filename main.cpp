@@ -113,7 +113,7 @@ int main(int argc, char *argv[])
 	FILE *fin = fopen(input_name, "r");
 //	YUVImage *inp = new YUVImage(YUV422, 16, 16);
 //	FILE *fin = fopen("p1.yuv", "r");
-	PGFCoder coder;
+	PGFPCoder coder;
 	dlog(LOG_FATAL, "encode=%d w=%d h=%d format=%d i=%s o=%s\n",Encode, width, height, format, input_name, output_name);
 	if (Encode) {
 		inp->read(fin);
