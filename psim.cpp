@@ -7,13 +7,12 @@
 #define	PSIM_HITS		50
 #define PSIM_PROB		1.5
 
-PDistrib PSim::predict(int x, int y)
+void PSim::predict(int x, int y, PDistrib *pd)
 {
-	Image *img = yuvimage->getPlane(plane);
+    Image *img = yuvimage->getPlane(plane);
 	if (!img || x-1<0 || x+1>=img->getWidth() || y-1<0 || y>=img->getHeight())
-		return PDistrib::getNullPD();
-	int Diff = getPredParam().SpikeRadius;
-	PDistrib pd = PDistrib::getNullPD();
+        return;
+    int Diff = getPredParam().SpikeRadius;
 	int nhits = 0;
 	float p;
 	int prec1, prec2, prec3;
@@ -55,10 +54,10 @@ PDistrib PSim::predict(int x, int y)
 			if (radius > img->getMaxValue() - v)
 				radius = img->getMaxValue() - v;
 			int distance = sqrt((x-xx)*(x-xx)+(y-yy)*(y-yy));
-			pd.addSpikeEllipse(v, radius, PSIM_PROB*(1-(prec1+prec2+prec3)/(PSIM_DIFF*3)));
+            pd->addSpikeEllipse(v, radius, PSIM_PROB*(1-(prec1+prec2+prec3)/(PSIM_DIFF*3)));
 			nhits++;
 		}
 	if (nhits>0)
 		dlog(LOG_ALL,"\n");
-	return pd;
+    return;
 }

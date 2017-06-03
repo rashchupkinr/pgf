@@ -1,13 +1,12 @@
 #include "pequal.h"
 
-#define PEQUAL_PROB	0.5
+#define PEQUAL_PROB	1
 
-PDistrib PEqual::predict(int x, int y)
+void PEqual::predict(int x, int y, PDistrib *pd)
 {
 	Image *img = yuvimage->getPlane(plane);
-	if (!img || x<0 || x>=img->getWidth() || y<0 || y>=img->getHeight())
-		return PDistrib::getNullPD();
-	PDistrib pd = PDistrib::getNullPD();
+    if (!img || x<0 || x>=img->getWidth() || y<0 || y>=img->getHeight())
+        return;
 	int val=-1;
 	float prob;
 	if (dir == PREDICTOR_DIR_L) {
@@ -35,14 +34,14 @@ PDistrib PEqual::predict(int x, int y)
 //			pd.addSpikeEllipse(img->get(x+1, y-1), getPredParam().SpikeRadius, PEQUAL_PROB/1.5);
 		}
 	} else
-		return pd;
+        return;
 	if (val < 0)
-		return pd;
+        return;
 	int radius = getPredParam().SpikeRadius;
 	if (radius > val)
 		radius = val;
 	if (radius > img->getMaxValue() - val)
 		radius = img->getMaxValue() - val;
-	pd.addSpikeEllipse(val, radius, prob);
-	return pd;
+    pd->addSpikeEllipse(val, radius, prob);
+    return;
 }

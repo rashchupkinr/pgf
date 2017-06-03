@@ -13,12 +13,13 @@ Predictor::Predictor(YUVImage *_img, int _dir, int _plane)
 {
 }
 
-PDistrib Predictor::predict(int x, int y)
+void Predictor::predict(int x, int y, PDistrib *pd)
 {
 	Image *img = yuvimage->getPlane(plane);
+    pd->setNullPD();
 	if (!img || x < 0 || x >= img->getWidth() || y < 0 || y >= img->getHeight())
-		return PDistrib::getNullPD();
-	return PDistrib::getUniformPD(img->getMaxValue());
+        return;
+    pd->setUniformPD(img->getMaxValue());
 }
 
 PredParam Predictor::getPredParam()

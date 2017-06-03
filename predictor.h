@@ -4,6 +4,11 @@
 #include "yuvimage.h"
 #include "pdistrib.h"
 
+
+#define PNUM					5
+#define PMIN_RADIUS				4
+#define PMAX_RADIUS				8
+
 #define PREDICTOR_DIR_L			0
 #define PREDICTOR_DIR_LU		1
 #define PREDICTOR_DIR_U			2
@@ -24,7 +29,7 @@ struct PredParam {
 class Predictor {
 public:
 	Predictor(YUVImage *_img, int _dir, int _plane = 0);
-	virtual PDistrib predict(int x, int y);
+    virtual void predict(int x, int y, PDistrib *pd);
 	PredParam getPredParam();
 protected:
 	int dir;

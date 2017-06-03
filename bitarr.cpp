@@ -47,12 +47,12 @@ std::ostream& operator<<(std::ostream& os, const bitarr &b)
 
 void bitarr::append(bool b)
 {
-	unsigned char c;
+    uint64_t c;
 	if (array.size() == 0)
 		c = 0;
 	else
 		c = array[array.size() - 1];
-	if (cur_pos < 8) {
+    if (cur_pos < 64) {
 		c |= b << cur_pos;
 		cur_pos++;
 		array[array.size() - 1] = c;
@@ -77,20 +77,20 @@ void bitarr::append(bitarr bar)
 
 void bitarr::set(size_t pos, bool value)
 {
-	size_t p = pos / 8;
+    size_t p = pos / 64;
 	if (p > array.size())
 		return;
-	pos -= p * 8;
+    pos -= p * 64;
 	array[p] &= ~(1<<pos);
 	array[p] |= value << pos;
 }
 
 bool bitarr::get(size_t pos) const
 {
-	size_t p = pos / 8;
+    size_t p = pos / 64;
 	if (p > array.size())
 		return false;
-	pos -= p * 8;
+    pos -= p * 64;
 	return (array[p] & (1 << pos)) >> pos;
 }
 
@@ -112,10 +112,10 @@ int bitarr::write(FILE *f)
 	int offset = 0;
 	if (fseek(f, offset, SEEK_SET))
 		return -1;
-	fwrite(&cur_pos, sizeof(char), 1, f);
+    fwrite(&cur_pos, sizeof(uint64_t), 1, f);
 	for (int i=0; i<array.size();i++) {
 		unsigned char v = array[i];
-		if (fwrite(&v, sizeof(char), 1, f) != sizeof(char))
+        if (fwrite(&v, sizeof(uint64_t), 1, f) != 1)
 			return -1;
 	}
 	return 0;
@@ -126,9 +126,9 @@ int bitarr::read(FILE *f)
 	int offset = 0;
 	if (fseek(f, offset, SEEK_SET))
 		return -1;
-	fread(&cur_pos, sizeof(char), 1, f);
+    fread(&cur_pos, sizeof(uint64_t), 1, f);
 	unsigned char v;
-	while (fread(&v, sizeof(char), 1, f) == sizeof(char))
+    while (fread(&v, sizeof(uint64_t), 1, f) == 1)
 		array.push_back(v);
 	return 0;
 }
@@ -136,11 +136,11 @@ int bitarr::read(FILE *f)
 void bitarr::clear()
 {
 	array.clear();
-	cur_pos = 8;
+    cur_pos = 64;
 }
 
 bitarr::bitarr() {
-	cur_pos = 8;
+    cur_pos = 64;
 }
 
 bitarr::~bitarr() {

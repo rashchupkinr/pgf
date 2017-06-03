@@ -3,13 +3,13 @@
 #include "c3x.h"
 using namespace std;
 
-unsigned int c3x::dist(c3x x)
+float c3x::dist(c3x x)
 {
 	float d = 0;
 	d += (x.c0() - c0())*(x.c0() - c0());
 	d += (x.c1() - c1())*(x.c1() - c1());
 	d += (x.c2() - c2())*(x.c2() - c2());
-	return round(sqrt(d));
+	return sqrt(d);
 }
 
 vector<c3x> c3x::list_dist(int dist)

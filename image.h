@@ -4,7 +4,7 @@
 #include <string.h>
 #include <vector>
 #include "polmap.h"
-#include "pdistrib.h"
+#include "pdistribn.h"
 using namespace std;
 
 #define	EDGE	-1
@@ -38,25 +38,25 @@ public:
 		memset(data, 0, sizeof(*data)*width*height);
 //		if (gen_polmap)
 //			polmap = new PolMap(this);
-		PDs = new PDistrib[width*height];
+        PDs = new PDistrib *[width*height];
 	}
 	~Image()
 	{
 		delete []data;
 	}
-	void setPD(int x, int y, PDistrib &pd)
+    void setPD(int x, int y, PDistrib *pd)
 	{
-		PDs[y*width+x] = pd;
+        PDs[y*width+x] = pd;
 	}
-	PDistrib getPD(int x, int y)
+    PDistrib *getPD(int x, int y)
 	{
-		return PDs[y*width+x];
+        return PDs[y*width+x];
 	}
 private:
 	int width, height;
 	int *data;
 //	PolMap *polmap;
-	PDistrib *PDs;
+    PDistrib **PDs;
 };
 
 #endif

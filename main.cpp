@@ -15,6 +15,7 @@
 #include "hcoder.h"
 #include "arcoder.h"
 #include "predictor.h"
+#include "pdistribn.h"
 using namespace std;
 
 bool Encode;
@@ -29,7 +30,7 @@ int process_arg(int argc, char **argv)
 	{
 		int c;
 
-		c = getopt(argc, argv, "ei:o:l:r:w:h:f:d:c:");
+        c = getopt(argc, argv, "ei:o:l:r:w:h:f:d:t:");
 		if (c==EOF) break;
 		switch (c)
 		{
@@ -73,7 +74,7 @@ int process_arg(int argc, char **argv)
 		case 'd':
 			log_priority(atoi(optarg));
 			break;
-		case 'c':
+        case 't':
 			TestH = atoi(optarg);
 			break;
 		default:
@@ -98,7 +99,20 @@ int main(int argc, char *argv[])
 		dlog(LOG_FATAL, "No width or height specified.\n");
 		exit(0);
 	}
-
+/*
+PDistribN pd;
+PDistribN::initUniformPDN(255);
+pd.setUniformPD(255);
+dlog(LOG_ALL,pd.print().c_str());
+dlog(LOG_ALL,"\n");
+PDistribN pd2;
+pd2.setNullPD();
+pd2.addSpikeEllipse(8,4,3);
+pd = pd + pd2;
+dlog(LOG_ALL,pd.print().c_str());
+pd.normalize();
+return 0;
+*/
 	if (TestH) {
 		if (TestH == 2) {
 			arcoder ac;
@@ -113,7 +127,7 @@ int main(int argc, char *argv[])
 	FILE *fin = fopen(input_name, "r");
 //	YUVImage *inp = new YUVImage(YUV422, 16, 16);
 //	FILE *fin = fopen("p1.yuv", "r");
-	PGFPCoder coder;
+    PGFPCoder coder;
 	dlog(LOG_FATAL, "encode=%d w=%d h=%d format=%d i=%s o=%s\n",Encode, width, height, format, input_name, output_name);
 	if (Encode) {
 		inp->read(fin);
@@ -126,8 +140,8 @@ int main(int argc, char *argv[])
 		FILE *fout = fopen(output_name, "w");
 		if (coder.getCodes()) {
 			coder.getCodes()->write(fout);
-			for (int i=0;i<coder.getCodes()->size();i++)
-				dlog(LOG_VERBOSE, "%d",coder.getCodes()->get(i));
+//			for (int i=0;i<coder.getCodes()->size();i++)
+//				dlog(LOG_VERBOSE, "%d",coder.getCodes()->get(i));
 		}
 
 		if (ref_name) {

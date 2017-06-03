@@ -8,21 +8,23 @@
 #include <math.h>
 #include "hcoder.h"
 #include "logging.h"
+#include "pdistribn.h"
 #undef BAR_TRACE
 
-int hcoder::setPDistrib(PDistrib _pd, bool _optimist)
+int hcoder::setPDistrib(PDistrib *_pd, bool _optimist)
 {
 	reset();
 	pd = _pd;
-	pd.normalize();
+    pd->normalize();
 	optimist = _optimist;
 	return genBTree();
 }
 
 void hcoder::reset()
 {
-	pd.reset();
-	codes.clear();
+    if (pd)
+        pd->reset();
+    codes.clear();
 	clearBTree();
 }
 
@@ -96,15 +98,15 @@ hcoder::Vertex *hcoder::findLocalRoot(unsigned int depth)
 
 int hcoder::genBTree()
 {
-	pd.sort(optimist);
+    pd->sort(optimist);
 
 	Vertex *localroot = new Vertex(&btree);
 	localroot->depth = 0;
 	localroot->busy = false;
 //	btree.push_back(localroot);
-	for (int i=0; i<pd.getSize(); i++) {
-		int val = pd[i].first;
-		double p = pd[i].second;
+    for (int i=0; i<pd->getSize(); i++) {
+        int val = (*pd)[i].first;
+        double p = (*pd)[i].second;
 		int depth = ceil(-log2(p));
 #ifdef BAR_TRACE
 		dlog(LOG_ERROR,"val%d p%f depth%d\n",val,p,depth);
@@ -233,8 +235,8 @@ int hcoder::decode(bitarr *arr, int pos, long *value)
 
 void hcoder::dump(int priority)
 {
-	for (int i=0; i<pd.getSize(); i++) {
-		dlog(priority ,"val=%d p=%.5f %s\n", pd[i].first, pd[i].second, encode(pd[i].first).print().c_str());
+    for (int i=0; i<pd->getSize(); i++) {
+        dlog(priority ,"val=%d p=%.5f %s\n", (*pd)[i].first, (*pd)[i].second, encode((*pd)[i].first).print().c_str());
 //		cout << "val="<<pd[i].first<<" p="<<pd[i].second<<" "<<encode(pd[i].first)<<endl;
 	}
 }
@@ -243,10 +245,12 @@ void hcoder::bench()
 {
 	double theor = 0;
 	double med = 0;
-	for (int i=0; i<pd.getSize(); i++) {
-//	for (auto it=pd.begin(); it!=pd.end(); it++) {
-		theor += log2(1/pd[i].second)*pd[i].second;
-		med += encode(pd[i].first).size()*pd[i].second;
+    for (int i=0; i<pd->getSize(); i++) {
+//	for (auto it=pd->begin(); it!=pd->end(); it++) {
+        if ((*pd)[i].second == 0)
+            continue;
+        theor += log2(1/(*pd)[i].second)*(*pd)[i].second;
+        med += encode((*pd)[i].first).size()*(*pd)[i].second;
 	}
 	cout << "Theor=\t"<<theor<<endl;
 	cout << "Med=\t"<<med<<endl;
@@ -256,21 +260,21 @@ void hcoder::bench()
 void hcoder::test()
 {
 	srandom(time(0));
-	PDistrib pd;
-	for (int i=0; i<16; i++) {
+    PDistrib *pd = new PDistribN;
+    for (int i=15; i>=0; i--) {
 		if (i==0)
-			pd.set(i, 1.0/4);
+            pd->set(i, 1.0/4);
 		else if (i==1)
-			pd.set(i, 1.0/6);
+            pd->set(i, 1.0/6);
 		else if (i<32)
-			pd.set(2*i, 1.0/(6+2*abs(i)));
+            pd->set(i, 1.0/(6+2*abs(i)));
 		else
-			pd.set(2*i, 1.0/256);
+            pd->set(2*i, 1.0/256);
 	}
-
-	setPDistrib(pd, true);
-	for (int i=0; i<pd.getSize(); i++) {
-		dlog(LOG_ERROR,"%d:%.02f ", pd[i].first, pd[i].second);
+    pd->sort();
+    setPDistrib(pd, true);
+    for (int i=0; i<pd->getSize(); i++) {
+        dlog(LOG_ERROR,"%d:%.02f ", (*pd)[i].first, (*pd)[i].second);
 	}
 	dlog(LOG_ERROR, "\n");
 	dump(LOG_ERROR);
@@ -279,6 +283,7 @@ void hcoder::test()
 
 hcoder::hcoder()
 {
+    pd = 0;
 	// TODO Auto-generated constructor stub
 }
 

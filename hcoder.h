@@ -7,6 +7,7 @@
 
 #ifndef BAR_H_
 #define BAR_H_
+#include <map>
 #include "pdistrib.h"
 #include "bitarr.h"
 
@@ -15,7 +16,7 @@ public:
 	hcoder();
 	virtual ~hcoder();
 	// pd must be sorted
-	int setPDistrib(PDistrib pd, bool _optimist = false);
+    int setPDistrib(PDistrib *pd, bool _optimist = false);
 	void reset();
 	bitarr encode(long val);
 	bitarr encodeTbl(long val);
@@ -41,7 +42,7 @@ protected:
 	void clearBTree();
 	int genCodes();
 private:
-	PDistrib pd;
+    PDistrib *pd;
 	bool optimist;
 	vector<Vertex *> btree;
 	std::map<long, bitarr> codes;

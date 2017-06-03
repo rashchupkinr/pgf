@@ -13,6 +13,9 @@
 #include "pdistrib.h"
 #include "predictor.h"
 #include "bitarr.h"
+#include "c3x.h"
+#include "pancoder.h"
+#include "pandistrib.h"
 
 
 class PGFCoder {
@@ -42,7 +45,6 @@ private:
 	YUVImage *edge_image;
 	YUVImage *pred_image;
 	vector<edge> edges;
-	PDistribWeight **pds[PREDICTOR_NUM];
 	bitarr *codes;
 	int decode_pos;
 };

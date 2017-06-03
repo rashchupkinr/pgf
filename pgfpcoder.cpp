@@ -16,6 +16,7 @@
 #include "plinear.h"
 #include "psim.h"
 #include "c3x.h"
+#include "pdistribn.h"
 using namespace std;
 
 extern void signal_stats(int signal);
@@ -31,7 +32,7 @@ int getHighBit(int v)
 
 void PGFPCoder::remove_edges()
 {
-	edge_image = new YUVImage(cur_image);
+    edge_image = new YUVImage(cur_image);
 	for (int k=0; k<yuvimage->getPlaneNum(); k++) {
 		Image *img = cur_image->getPlane(k);
 		Image *edge_img = edge_image->getPlane(k);
@@ -47,12 +48,8 @@ void PGFPCoder::remove_edges()
 
 int PGFPCoder::encode(int trim)
 {
-	PDistrib::initUniformPD(yuvimage->getPlane(0)->getMaxValue());
-	for (int k=0; k<PREDICTOR_NUM; k++) {
-		pds[k] = new PDistribWeight *[yuvimage->getPlaneNum()];
-		for (int i=0; i<yuvimage->getPlaneNum(); i++)
-			pds[k][i] = new PDistribWeight[yuvimage->getWidth(i)*yuvimage->getHeight(i)];
-	}
+    PDistribA::initUniformPD(yuvimage->getPlane(0)->getMaxValue());
+    PDistribN::initUniformPDN(yuvimage->getPlane(0)->getMaxValue());
 
 	for (int i=0; i<yuvimage->getPlaneNum(); i++) {
 		int ret = encode_plane(i, trim);
@@ -76,44 +73,45 @@ int PGFPCoder::encode_plane(int pnum, int trim)
 											PLinear(yuvimage, PREDICTOR_DIR_U, pnum),
 											PLinear(yuvimage, PREDICTOR_DIR_RU, pnum)};
 	PSim pSim = PSim(yuvimage, pnum);
+    dlog(LOG_ALL, "mvd\n", yuvimage->getMaxValue());
 //	hcoder hc;
 	for (int y=0; y<img->getHeight(); y++) {
 		float bits_row = 0;
 		for (int x=0; x<img->getWidth(); x++) {
 			dlog(LOG_ALL, "%d e[%d,%d]=%d\n", pnum, y, x, img->get(x, y));
-			PDistrib pd = PDistrib::getUniformPD(img->getMaxValue());
-			{
-				PDistrib pdMed = pMed.predict(x, y);
+            PDistrib *pd = new PDistribN;
+            pd->setUniformPD(yuvimage->getMaxValue());
+            {
+                pMed.predict(x, y, pd);
 //				pds[PREDICTOR_MED][pnum][y*img->getWidth()+x].pd = pdMed;
-				pd = pd + pdMed;
-				dlog(LOG_ALL,"pdm %s\n", pdMed.print().c_str());
+                dlog(LOG_ALL,"pdm %s\n", pd->print().c_str());
 			}
 //if (0)
 			for (int dir=0; dir<PREDICTOR_DIR_NUM; dir++) {
-				PDistrib pdEqual = pEqual[dir].predict(x, y);
+                if (dir == PREDICTOR_DIR_LU)
+                    continue;
+                pEqual[dir].predict(x, y, pd);
 //				pds[PREDICTOR_EQUAL+dir][pnum][y*img->getWidth()+x].pd = pdEqual;
-				pd = pd + pdEqual;
-				dlog(LOG_ALL,"pde %s\n", pdEqual.print().c_str());
+                dlog(LOG_ALL,"pde %s\n", pd->print().c_str());
 			}
 
-			if (0)
+            if (0)
 			for (int dir=0; dir<PREDICTOR_DIR_NUM; dir++) {
-				PDistrib pdLinear = pLinear[dir].predict(x, y);
+                pLinear[dir].predict(x, y, pd);
 //				pds[PREDICTOR_LINEAR+dir][pnum][y*img->getWidth()+x].pd = pdLinear;
-				pd = pd + pdLinear;
-				dlog(LOG_ALL,"pdl %s\n", pdLinear.print().c_str());
+                dlog(LOG_ALL,"pdl %s\n", pd->print().c_str());
 			}
 
-//			if (0)
+            if (0)
 			{
-				PDistrib pdSim = pSim.predict(x, y);
+                pSim.predict(x, y, pd);
 //				pds[PREDICTOR_MED][pnum][y*img->getWidth()+x].pd = pdMed;
-				pd = pd + pdSim;
-				dlog(LOG_ALL,"pds %s\n", pdSim.print().c_str());
+                dlog(LOG_ALL,"pds %s\n", pd->print().c_str());
 			}
-			img->setPD(x, y, pd);
-
-			/*
+//            pd->sort();
+            dlog(LOG_ALL, "pd %s\n", pd->print().c_str());
+            img->setPD(x, y, pd);
+            /*
 			pd.sort();
 //			continue;
 			pd.normalize();
@@ -142,7 +140,7 @@ int PGFPCoder::encode_plane(int pnum, int trim)
 			}
 */
 		}
-		dlog(LOG_NORMAL, "r%d ", y);
+        dlog(LOG_VERBOSE, "r%d ", y);
 	}
 	encode_plane_PDs(pnum);
 	return 0;
@@ -157,19 +155,18 @@ int PGFPCoder::encode_plane_PDs(int pnum)
 		float bits_row = 0;
 		for (int x=0; x<img->getWidth(); x++) {
 			dlog(LOG_ALL, "%d w[%d,%d]\n", pnum, y, x);
-			PDistrib pd = img->getPD(x, y);
-			pd.sort();
+            PDistrib *pd = (PDistribN *)img->getPD(x, y);
 		//			continue;
-			pd.normalize();
-			dlog(LOG_ALL,"pd %s\n", pd.print().c_str());
+//            pd->normalize();
+            dlog(LOG_ALL,"pd %s\n", pd->print().c_str());
 			if (hc.setPDistrib(pd, true) < 0) {
-				hc.dump(LOG_FATAL);
+                hc.dump(LOG_FATAL);
 				dlog(LOG_FATAL, "Encode error(hc.setPDistrib).\n");
 		//				dlog(LOG_FATAL,"pds %s\n", pdSim.print().c_str());
-				dlog(LOG_FATAL,"[%d, %d]: pd %s", pd.print().c_str(), y, x);
+                dlog(LOG_FATAL,"[%d, %d]: pd %s", pd->print().c_str(), y, x);
 				return -1;
 			}
-		//hc.dump();
+//        hc.dump(LOG_ALL);
 			bitarr code = hc.encode(img->get(x, y));
 			codes->append(code);
 			bits_row += code.size();
@@ -177,14 +174,15 @@ int PGFPCoder::encode_plane_PDs(int pnum)
 			dlog(LOG_ALL,"coded[%d,%d] %d_%s|%d|\n", y, x, img->get(x,y), code.print().c_str(),codes->size());
 			//		dlog(LOG_NORMAL, "r%d{%.2f} ", y, bits_row/img->getWidth());
 		}
-		dlog(LOG_NORMAL, "R%d{%.2f} ", y, bits_row/img->getWidth());
+        dlog(LOG_VERBOSE, "R%d{%.2f} ", y, bits_row/img->getWidth());
 	}
 }
 
 int PGFPCoder::decode(FILE *fout)
 {
-	PDistrib::initUniformPD(yuvimage->getPlane(0)->getMaxValue());
-	decode_pos = 0;
+    PDistribA::initUniformPD(yuvimage->getPlane(0)->getMaxValue());
+    PDistribN::initUniformPDN(yuvimage->getPlane(0)->getMaxValue());
+    decode_pos = 0;
 	for (int i=0; i<yuvimage->getPlaneNum(); i++) {
 		int ret = decode_plane(i, fout);
 		if (ret < 0)
@@ -210,47 +208,43 @@ int PGFPCoder::decode_plane(int pnum, FILE *fout)
 	for (int y=0; y<img->getHeight(); y++) {
 		for (int x=0; x<img->getWidth(); x++) {
 			dlog(LOG_ALL, "%d d[%d,%d]\n", pnum, y, x);
-			PDistrib pd = PDistrib::getUniformPD(img->getMaxValue());
-
+            PDistrib *pd = new PDistribN;
+            pd->setUniformPD(yuvimage->getMaxValue());
 			{
-				PDistrib pdMed = pMed.predict(x, y);
+                pMed.predict(x, y, pd);
 //				pds[PREDICTOR_MED][pnum][y*img->getWidth()+x].pd = pdMed;
-				pd = pd + pdMed;
-				dlog(LOG_ALL,"pdm %s\n", pdMed.print().c_str());
+                dlog(LOG_ALL,"pdm %s\n", pd->print().c_str());
 			}
 //3			if (0)
 			for (int dir=0; dir<PREDICTOR_DIR_NUM; dir++) {
-				PDistrib pdEqual = pEqual[dir].predict(x, y);
+                pEqual[dir].predict(x, y, pd);
 //				pds[PREDICTOR_EQUAL+dir][pnum][y*img->getWidth()+x].pd = pdEqual;
-				pd = pd + pdEqual;
-				dlog(LOG_ALL,"pde %s\n", pdEqual.print().c_str());
+                dlog(LOG_ALL,"pde %s\n", pd->print().c_str());
 			}
 
-//			if (0)
+            if (0)
 			for (int dir=0; dir<PREDICTOR_DIR_NUM; dir++) {
-				PDistrib pdLinear = pLinear[dir].predict(x, y);
+                pLinear[dir].predict(x, y, pd);
 //				pds[PREDICTOR_LINEAR+dir][pnum][y*img->getWidth()+x].pd = pdLinear;
-				pd = pd + pdLinear;
-				dlog(LOG_ALL,"pdl %s\n", pdLinear.print().c_str());
+                dlog(LOG_ALL,"pdl %s\n", pd->print().c_str());
 			}
 
-			if (0)
+            if (0)
 			{
-				PDistrib pdSim = pSim.predict(x, y);
-//				pds[PREDICTOR_MED][pnum][y*img->getWidth()+x].pd = pdMed;
-				pd = pd + pdSim;
-				dlog(LOG_ALL,"pds %s\n", pdSim.print().c_str());
+                pSim.predict(x, y, pd);
+//				pds[PREaddSpikeEllipse(m][y*img->getWidth()+x].pd = pdMed;
+                dlog(LOG_ALL,"pds %s\n", pd->print().c_str());
 			}
 			img->setPD(x, y, pd);
 
-			pd.sort();
-			pd.normalize();
-			dlog(LOG_ALL,"pd %s\n", pd.print().c_str());
+            pd->sort();
+            pd->normalize();
+            dlog(LOG_ALL,"pd %s\n", pd->print().c_str());
 			if (hc.setPDistrib(pd, true) < 0) {
 				hc.dump(LOG_FATAL);
 				dlog(LOG_FATAL, "Decode error(hc.setPDistrib).\n");
 //				dlog(LOG_FATAL,"pds %s\n", pdSim.print().c_str());
-				dlog(LOG_FATAL,"[%d, %d]: pd %s", y , x, pd.print().c_str());
+                dlog(LOG_FATAL,"[%d, %d]: pd %s", y , x, pd->print().c_str());
 				return -1;
 			}
 			long v;

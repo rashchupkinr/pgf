@@ -13,6 +13,7 @@
 #include "image.h"
 
 FILE *LogFile=0;
+int _DLOG_cur = LOG_FATAL;
 int LogPriority = LOG_ALL;
 
 bool is_dlog(int priority)
@@ -54,6 +55,7 @@ void dlog_coef(int level, unsigned char ***coef, int steps, int x, int y)
 
 void dlog(int priority, const char *msg, ...)
 {
+    _DLOG_cur = priority;
 	if (priority > LogPriority)
 		return;
 	time_t t = time(0);

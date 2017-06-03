@@ -38,7 +38,6 @@ private:
 	YUVImage *edge_image;
 	YUVImage *pred_image;
 	vector<edge> edges;
-	PDistribWeight **pds[PREDICTOR_NUM];
 	bitarr *codes;
 	int decode_pos;
 };

@@ -26,13 +26,13 @@ public:
 	bool get(size_t pos) const;
 	void set(size_t pos, bool value);
 	void cut(size_t pos);
-	size_t	size()	const	{	return (array.size()-1)*8+cur_pos;	}
+    size_t	size()	const	{	return (array.size()-1)*64+cur_pos;	}
 	int write(FILE *f);
 	friend std::ostream& operator<<(std::ostream& os, const bitarr &b);
 	int read(FILE *f);
 	string print() const;
 private:
-	vector<unsigned char> array;
+    vector<uint64_t> array;
 	int cur_pos;
 };
 
