@@ -56,25 +56,25 @@ void dlog_coef(int level, unsigned char ***coef, int steps, int x, int y)
 void dlog(int priority, const char *msg, ...)
 {
     _DLOG_cur = priority;
-	if (priority > LogPriority)
+    if (priority > LogPriority)
 		return;
 	time_t t = time(0);
 	struct tm *time = localtime(&t);
 	char tbuf[512];
 //	strftime(tbuf, 512, "%D %H:%M:%S|\t", time);
 	va_list args;
-	if (priority <= LogPriority) {
-		if (LogFile) {
+    if (priority <= LogPriority) {
+        if (LogFile) {
 //			fprintf(LogFile, (char *)tbuf);
 			va_start(args, msg);
-			vfprintf(LogFile, msg, args);
+            vfprintf(LogFile, msg, args);
 			va_end(args);
 //			fprintf(LogFile, "\n");
 			fflush(LogFile);
-		}
+        }
 //		fprintf(stdout, (char *)tbuf);
 		va_start(args, msg);
-		vfprintf(stdout, msg, args);
+        vfprintf(stdout, msg, args);
 		va_end(args);
 //		fprintf(stdout, "\n");
 		fflush(stdout);

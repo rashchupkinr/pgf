@@ -6,7 +6,7 @@
 void PMed::predict(int x, int y, PDistrib *pd)
 {
 	Image *img = yuvimage->getPlane(plane);
-   if (!img || x<0 || x>=img->getWidth() || y<0 || y>=img->getHeight())
+    if (!img || x<0 || x>=img->getWidth() || y<0 || y>=img->getHeight())
         return;
     int v;
 	float val = 0;
@@ -52,13 +52,12 @@ void PMed::predict(int x, int y, PDistrib *pd)
         return;
 	val /= n;
 	int radius = getPredParam().SpikeRadius;
-	if (max >= min)
+/*    if (max >= min)
 		radius += (max - min)/2;
-    if (2*radius > val)
+*/    if (2*radius > val)
         radius = val/2;
     if (2*radius > img->getMaxValue() - val)
         radius = (img->getMaxValue() - val)/2;
-
 //	if (n>0)
         pd->addSpikeEllipse(val, 2*radius, PMED_PROB);
 }

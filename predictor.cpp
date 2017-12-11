@@ -29,5 +29,5 @@ PredParam Predictor::getPredParam()
 	if (!yuvimage)
 		return param;
 	param.SpikeRadius = 4;//(img->getMaxValue()+1)/64;
-	return param;
+    return param;
 }
