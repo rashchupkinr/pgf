@@ -53,7 +53,7 @@ void bitarr::append(bool b)
 	else
 		c = array[array.size() - 1];
     if (cur_pos < 64) {
-		c |= b << cur_pos;
+        c |= ((uint64_t)b) << cur_pos;
 		cur_pos++;
 		array[array.size() - 1] = c;
 	} else {
@@ -114,8 +114,8 @@ int bitarr::write(FILE *f)
 		return -1;
     fwrite(&cur_pos, sizeof(uint64_t), 1, f);
 	for (int i=0; i<array.size();i++) {
-		unsigned char v = array[i];
-        if (fwrite(&v, sizeof(uint64_t), 1, f) != 1)
+        uint64_t v = array[i];
+        if (fwrite(&v, 1, sizeof(uint64_t), f) != sizeof(uint64_t))
 			return -1;
 	}
 	return 0;

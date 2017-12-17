@@ -55,7 +55,8 @@ int PGFPCoder::encode(int trim)
 		int ret = encode_plane(i, trim);
 		if (ret < 0)
 			return ret;
-	}
+        encode_plane_PDs(i);
+    }
 	return 0;
 }
 
@@ -87,18 +88,18 @@ int PGFPCoder::encode_plane(int pnum, int trim)
 		for (int x=0; x<img->getWidth(); x++) {
 			dlog(LOG_ALL, "%d e[%d,%d]=%d\n", pnum, y, x, img->get(x, y));
             PDistrib *pd = new PDistribN;
-            int radius = pMed.getPredParam().SpikeRadius;
             pd->setUniformPD(yuvimage->getMaxValue());
             {
+                int radius = pMed.getPredParam().SpikeRadius;
                 double priority = 1;
                 int pn = 0;
                 for (int d = 0; d < PREDICTOR_DIR_NUM; d++) {
                     int xd = x, yd = y;
                     if (img->getDir(&xd, &yd, d) == 0) {
                         int diff = pDiff[PREDICTOR_MED][yd][xd];
-                        if (diff < pMed.getPredParam().SpikeRadius) {
+                        if (diff < radius) {
                             pn++;
-                            priority += (fabs(diff - pMed.getPredParam().SpikeRadius))/4;
+                            priority += (fabs(radius - diff) + 1)/radius;
                         }
                     }
 
@@ -106,15 +107,17 @@ int PGFPCoder::encode_plane(int pnum, int trim)
                 if (pn == PREDICTOR_DIR_NUM) {
                     priority*=2;
 //                    radius--;
-                }
+                } else
+                    radius *= 2;
 //                priority = 1;
-                int val = pMed.predict(x, y, pd, priority, pn==PREDICTOR_DIR_NUM?radius-1:radius);
+                int val = pMed.predict(x, y, pd, priority, radius);
                 pDiff[PREDICTOR_MED][y][x] = abs(val-img->get(x, y));
 //				pds[PREDICTOR_MED][pnum][y*img->getWidth()+x].pd = pdMed;
                 dlog(LOG_ALL,"pr=%f %03d pdm %s\n", priority, val, pd->print().c_str());
 			}
 //if (0)
 			for (int dir=0; dir<PREDICTOR_DIR_NUM; dir++) {
+                int radius = pEqual[dir].getPredParam().SpikeRadius;
 //                if (dir == PREDICTOR_DIR_LU)
 //                    continue;
                 double priority = 1;
@@ -123,9 +126,9 @@ int PGFPCoder::encode_plane(int pnum, int trim)
                     int xd = x, yd = y;
                     if (img->getDir(&xd, &yd, d) == 0) {
                         int diff = pDiff[PREDICTOR_EQUAL + dir][yd][xd];
-                        if (diff < pEqual[dir].getPredParam().SpikeRadius) {
+                        if (diff < radius) {
                             pn++;
-                            priority += (fabs(diff - pEqual[dir].getPredParam().SpikeRadius))/4;
+                            priority += (fabs(radius - diff) + 1)/radius;
                         }
                     }
 
@@ -133,9 +136,10 @@ int PGFPCoder::encode_plane(int pnum, int trim)
                 if (pn == PREDICTOR_DIR_NUM) {
                     priority *= 2;
 //                    radius--;
-                }
+                } else
+                      radius *= 2;
 //                priority = 1;
-                int val = pEqual[dir].predict(x, y, pd, priority, pn==PREDICTOR_DIR_NUM?radius-1:radius);
+                int val = pEqual[dir].predict(x, y, pd, priority, radius);
                 pDiff[PREDICTOR_EQUAL+dir][y][x] = abs(val-img->get(x, y));
 //				pds[PREDICTOR_EQUAL+dir][pnum][y*img->getWidth()+x].pd = pdEqual;
                 dlog(LOG_ALL,"pr=%f %03d pde %s\n", priority, val, pd->print().c_str());
@@ -143,6 +147,7 @@ int PGFPCoder::encode_plane(int pnum, int trim)
 
             if (0)
 			for (int dir=0; dir<PREDICTOR_DIR_NUM; dir++) {
+                int radius = pMed.getPredParam().SpikeRadius;
                 pLinear[dir].predict(x, y, pd, 1, radius);
 //				pds[PREDICTOR_LINEAR+dir][pnum][y*img->getWidth()+x].pd = pdLinear;
                 dlog(LOG_ALL,"pdl %s\n", pd->print().c_str());
@@ -150,6 +155,7 @@ int PGFPCoder::encode_plane(int pnum, int trim)
 
             if (0)
 			{
+                int radius = pMed.getPredParam().SpikeRadius;
                 pSim.predict(x, y, pd, 1, radius);
 //				pds[PREDICTOR_MED][pnum][y*img->getWidth()+x].pd = pdMed;
                 dlog(LOG_ALL,"pds %s\n", pd->print().c_str());
@@ -188,7 +194,11 @@ int PGFPCoder::encode_plane(int pnum, int trim)
 		}
         dlog(LOG_VERBOSE, "r%d ", y);
 	}
-	encode_plane_PDs(pnum);
+    for (int i=0; i<PREDICTOR_NUM; i++) {
+         for (int y=0; y<img->getHeight(); y++)
+             delete pDiff[i][y];
+         delete pDiff[i];
+    }
 	return 0;
 }
 
@@ -217,7 +227,7 @@ int PGFPCoder::encode_plane_PDs(int pnum)
 			codes->append(code);
 			bits_row += code.size();
 
-			dlog(LOG_ALL,"coded[%d,%d] %d_%s|%d|\n", y, x, img->get(x,y), code.print().c_str(),codes->size());
+            dlog(LOG_ALL,"coded[%d,%d] %d_%s|%d|\n", y, x, img->get(x,y), code.print().c_str(),code.size());
 			//		dlog(LOG_NORMAL, "r%d{%.2f} ", y, bits_row/img->getWidth());
 		}
         dlog(LOG_VERBOSE, "R%d{%.2f} ", y, bits_row/img->getWidth());

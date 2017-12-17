@@ -33,7 +33,7 @@ public:
 	string print() const;
 private:
     vector<uint64_t> array;
-	int cur_pos;
+    uint64_t cur_pos;
 };
 
 #endif /* BITS_H_ */
