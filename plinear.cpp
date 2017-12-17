@@ -1,10 +1,10 @@
 #include "plinear.h"
 
-void PLinear::predict(int x, int y, PDistrib *pd)
+int PLinear::predict(int x, int y, PDistrib *pd, double priority, int rad)
 {
 	Image *img = yuvimage->getPlane(plane);
     if (!img || x<0 || x>=img->getWidth() || y<0 || y>=img->getHeight())
-        return;
+        return -1;
 	int v0 = 0, v1 = 0;
     long v = -1;
 	float prob;
@@ -12,7 +12,7 @@ void PLinear::predict(int x, int y, PDistrib *pd)
 		if (x > 1) {
 			long delta = img->get(x-1, y)-img->get(x-2, y);
 			if (abs(delta) > getPredParam().SpikeRadius*2)
-                return;
+                return -1;
 			v = img->get(x-1, y)+delta;
 			prob = 0.15;
 		}
@@ -20,7 +20,7 @@ void PLinear::predict(int x, int y, PDistrib *pd)
 		if (x > 1 && y > 1) {
 			long delta = img->get(x-1, y-1)-img->get(x-2, y-2);
 			if (abs(delta) > getPredParam().SpikeRadius*2)
-                return;
+                return -1;
 			v = img->get(x-1, y-1)+delta;
 			prob = 0.1;
 		}
@@ -28,7 +28,7 @@ void PLinear::predict(int x, int y, PDistrib *pd)
 		if (y > 1) {
 			long delta = img->get(x, y-1)-img->get(x, y-2);
 			if (abs(delta) > getPredParam().SpikeRadius*2)
-                return;
+                return -1;
 			v = img->get(x, y-1)+delta;
 			prob = 0.15;
 		}
@@ -36,15 +36,18 @@ void PLinear::predict(int x, int y, PDistrib *pd)
 		if (x < img->getWidth()-2 && y > 1) {
 			long delta = img->get(x+1, y-1)-img->get(x+2, y-2);
 			if (abs(delta) > getPredParam().SpikeRadius*2)
-                return;
+                return -1;
 			v = img->get(x+1, y-1)+delta;
 			prob = 0.1;
 		}
-	int radius = getPredParam().SpikeRadius;
+    int radius = rad;
 	if (radius > v)
 		radius = v;
 	if (radius > img->getMaxValue() - v)
 		radius = img->getMaxValue() - v;
-    if (v != -1)
-        pd->addSpikeEllipse(v, radius, prob);
+    if (v != -1) {
+        pd->addSpikeEllipse(v, radius, prob*priority);
+        return v;
+    }
+    return -1;
 }

@@ -29,7 +29,7 @@ struct PredParam {
 class Predictor {
 public:
 	Predictor(YUVImage *_img, int _dir, int _plane = 0);
-    virtual void predict(int x, int y, PDistrib *pd);
+    virtual int predict(int x, int y, PDistrib *pd, double priority, int rad);
 	PredParam getPredParam();
 protected:
 	int dir;

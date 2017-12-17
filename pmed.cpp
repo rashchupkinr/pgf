@@ -3,11 +3,11 @@
 #include "logging.h"
 #define PMED_PROB 2
 
-void PMed::predict(int x, int y, PDistrib *pd)
+int PMed::predict(int x, int y, PDistrib *pd, double priority, int rad)
 {
 	Image *img = yuvimage->getPlane(plane);
     if (!img || x<0 || x>=img->getWidth() || y<0 || y>=img->getHeight())
-        return;
+        return -1;
     int v;
 	float val = 0;
 	float n = 0;
@@ -48,10 +48,10 @@ void PMed::predict(int x, int y, PDistrib *pd)
 		if (v > max)
 			max = v;
 	}
-	if (!n)
-        return;
+    if (n < 0.1)
+        return -1;
 	val /= n;
-	int radius = getPredParam().SpikeRadius;
+    int radius = rad;
 /*    if (max >= min)
 		radius += (max - min)/2;
 */    if (2*radius > val)
@@ -59,5 +59,6 @@ void PMed::predict(int x, int y, PDistrib *pd)
     if (2*radius > img->getMaxValue() - val)
         radius = (img->getMaxValue() - val)/2;
 //	if (n>0)
-        pd->addSpikeEllipse(val, 2*radius, PMED_PROB);
+    pd->addSpikeEllipse(val, 2*radius, PMED_PROB*priority);
+    return val;
 }

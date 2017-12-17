@@ -51,7 +51,7 @@ int PGFPCoder::encode(int trim)
     PDistribA::initUniformPD(yuvimage->getPlane(0)->getMaxValue());
     PDistribN::initUniformPDN(yuvimage->getPlane(0)->getMaxValue());
 
-	for (int i=0; i<yuvimage->getPlaneNum(); i++) {
+    for (int i=0; i<yuvimage->getPlaneNum(); i++) {
 		int ret = encode_plane(i, trim);
 		if (ret < 0)
 			return ret;
@@ -68,11 +68,18 @@ int PGFPCoder::encode_plane(int pnum, int trim)
 											PEqual(yuvimage, PREDICTOR_DIR_LU, pnum),
 											PEqual(yuvimage, PREDICTOR_DIR_U, pnum),
 											PEqual(yuvimage, PREDICTOR_DIR_RU, pnum)};
+
 	PLinear pLinear[PREDICTOR_DIR_NUM] = {	PLinear(yuvimage, PREDICTOR_DIR_L, pnum),
 											PLinear(yuvimage, PREDICTOR_DIR_LU, pnum),
 											PLinear(yuvimage, PREDICTOR_DIR_U, pnum),
 											PLinear(yuvimage, PREDICTOR_DIR_RU, pnum)};
 	PSim pSim = PSim(yuvimage, pnum);
+    double **pDiff[PREDICTOR_NUM];
+    for (int i=0; i<PREDICTOR_NUM; i++) {
+         pDiff[i] = new double*[img->getHeight()];
+         for (int y=0; y<img->getHeight(); y++)
+            pDiff[i][y] = new double[img->getWidth()];
+    }
     dlog(LOG_ALL, "mvd\n", yuvimage->getMaxValue());
 //	hcoder hc;
 	for (int y=0; y<img->getHeight(); y++) {
@@ -80,31 +87,70 @@ int PGFPCoder::encode_plane(int pnum, int trim)
 		for (int x=0; x<img->getWidth(); x++) {
 			dlog(LOG_ALL, "%d e[%d,%d]=%d\n", pnum, y, x, img->get(x, y));
             PDistrib *pd = new PDistribN;
+            int radius = pMed.getPredParam().SpikeRadius;
             pd->setUniformPD(yuvimage->getMaxValue());
             {
-                pMed.predict(x, y, pd);
+                double priority = 1;
+                int pn = 0;
+                for (int d = 0; d < PREDICTOR_DIR_NUM; d++) {
+                    int xd = x, yd = y;
+                    if (img->getDir(&xd, &yd, d) == 0) {
+                        int diff = pDiff[PREDICTOR_MED][yd][xd];
+                        if (diff < pMed.getPredParam().SpikeRadius) {
+                            pn++;
+                            priority += (fabs(diff - pMed.getPredParam().SpikeRadius))/4;
+                        }
+                    }
+
+                }
+                if (pn == PREDICTOR_DIR_NUM) {
+                    priority*=2;
+//                    radius--;
+                }
+//                priority = 1;
+                int val = pMed.predict(x, y, pd, priority, pn==PREDICTOR_DIR_NUM?radius-1:radius);
+                pDiff[PREDICTOR_MED][y][x] = abs(val-img->get(x, y));
 //				pds[PREDICTOR_MED][pnum][y*img->getWidth()+x].pd = pdMed;
-                dlog(LOG_ALL,"pdm %s\n", pd->print().c_str());
+                dlog(LOG_ALL,"pr=%f %03d pdm %s\n", priority, val, pd->print().c_str());
 			}
 //if (0)
 			for (int dir=0; dir<PREDICTOR_DIR_NUM; dir++) {
-                if (dir == PREDICTOR_DIR_LU)
-                    continue;
-                pEqual[dir].predict(x, y, pd);
+//                if (dir == PREDICTOR_DIR_LU)
+//                    continue;
+                double priority = 1;
+                int pn = 0;
+                for (int d = 0; d < PREDICTOR_DIR_NUM; d++) {
+                    int xd = x, yd = y;
+                    if (img->getDir(&xd, &yd, d) == 0) {
+                        int diff = pDiff[PREDICTOR_EQUAL + dir][yd][xd];
+                        if (diff < pEqual[dir].getPredParam().SpikeRadius) {
+                            pn++;
+                            priority += (fabs(diff - pEqual[dir].getPredParam().SpikeRadius))/4;
+                        }
+                    }
+
+                }
+                if (pn == PREDICTOR_DIR_NUM) {
+                    priority *= 2;
+//                    radius--;
+                }
+//                priority = 1;
+                int val = pEqual[dir].predict(x, y, pd, priority, pn==PREDICTOR_DIR_NUM?radius-1:radius);
+                pDiff[PREDICTOR_EQUAL+dir][y][x] = abs(val-img->get(x, y));
 //				pds[PREDICTOR_EQUAL+dir][pnum][y*img->getWidth()+x].pd = pdEqual;
-                dlog(LOG_ALL,"pde %s\n", pd->print().c_str());
+                dlog(LOG_ALL,"pr=%f %03d pde %s\n", priority, val, pd->print().c_str());
 			}
 
             if (0)
 			for (int dir=0; dir<PREDICTOR_DIR_NUM; dir++) {
-                pLinear[dir].predict(x, y, pd);
+                pLinear[dir].predict(x, y, pd, 1, radius);
 //				pds[PREDICTOR_LINEAR+dir][pnum][y*img->getWidth()+x].pd = pdLinear;
                 dlog(LOG_ALL,"pdl %s\n", pd->print().c_str());
 			}
 
             if (0)
 			{
-                pSim.predict(x, y, pd);
+                pSim.predict(x, y, pd, 1, radius);
 //				pds[PREDICTOR_MED][pnum][y*img->getWidth()+x].pd = pdMed;
                 dlog(LOG_ALL,"pds %s\n", pd->print().c_str());
 			}
@@ -158,7 +204,6 @@ int PGFPCoder::encode_plane_PDs(int pnum)
             PDistrib *pd = (PDistribN *)img->getPD(x, y);
 		//			continue;
 //            pd->normalize();
-            dlog(LOG_ALL,"pd %s\n", pd->print().c_str());
 			if (hc.setPDistrib(pd, true) < 0) {
                 hc.dump(LOG_FATAL);
 				dlog(LOG_FATAL, "Encode error(hc.setPDistrib).\n");
@@ -166,6 +211,7 @@ int PGFPCoder::encode_plane_PDs(int pnum)
                 dlog(LOG_FATAL,"[%d, %d]: pd %s", pd->print().c_str(), y, x);
 				return -1;
 			}
+            dlog(LOG_ALL,"pd %s\n", pd->print().c_str());
 //        hc.dump(LOG_ALL);
 			bitarr code = hc.encode(img->get(x, y));
 			codes->append(code);
@@ -208,30 +254,31 @@ int PGFPCoder::decode_plane(int pnum, FILE *fout)
 	for (int y=0; y<img->getHeight(); y++) {
 		for (int x=0; x<img->getWidth(); x++) {
 			dlog(LOG_ALL, "%d d[%d,%d]\n", pnum, y, x);
+            int radius = pMed.getPredParam().SpikeRadius;
             PDistrib *pd = new PDistribN;
             pd->setUniformPD(yuvimage->getMaxValue());
 			{
-                pMed.predict(x, y, pd);
+                pMed.predict(x, y, pd, 1, radius);
 //				pds[PREDICTOR_MED][pnum][y*img->getWidth()+x].pd = pdMed;
                 dlog(LOG_ALL,"pdm %s\n", pd->print().c_str());
 			}
-//3			if (0)
+//			if (0)
 			for (int dir=0; dir<PREDICTOR_DIR_NUM; dir++) {
-                pEqual[dir].predict(x, y, pd);
+                pEqual[dir].predict(x, y, pd, 1, radius);
 //				pds[PREDICTOR_EQUAL+dir][pnum][y*img->getWidth()+x].pd = pdEqual;
                 dlog(LOG_ALL,"pde %s\n", pd->print().c_str());
 			}
 
             if (0)
 			for (int dir=0; dir<PREDICTOR_DIR_NUM; dir++) {
-                pLinear[dir].predict(x, y, pd);
+                pLinear[dir].predict(x, y, pd, 1, radius);
 //				pds[PREDICTOR_LINEAR+dir][pnum][y*img->getWidth()+x].pd = pdLinear;
                 dlog(LOG_ALL,"pdl %s\n", pd->print().c_str());
 			}
 
             if (0)
 			{
-                pSim.predict(x, y, pd);
+                pSim.predict(x, y, pd, 1, radius);
 //				pds[PREaddSpikeEllipse(m][y*img->getWidth()+x].pd = pdMed;
                 dlog(LOG_ALL,"pds %s\n", pd->print().c_str());
 			}

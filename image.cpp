@@ -2,6 +2,43 @@
 #include "image.h"
 #include "polygon.h"
 #include "logging.h"
+#include "predictor.h"
+
+
+int Image::getPointDir(int x, int y, int dir)
+{
+    if (getDir(&x, &y, dir) < 0)
+        return -1;
+    return get(x, y);
+}
+
+int Image::getDir(int *x, int *y, int dir)
+{
+    if (dir == PREDICTOR_DIR_L) {
+        if (*x > 0) {
+            (*x)--;
+            return 0;
+        }
+    } else if (dir == PREDICTOR_DIR_LU) {
+        if (*x > 0 && *y > 0) {
+            (*x)--;
+            (*y)--;
+            return 0;
+        }
+    } else if (dir == PREDICTOR_DIR_U) {
+        if (*y > 0) {
+            (*y)--;
+            return 0;
+        }
+    } else if (dir == PREDICTOR_DIR_RU) {
+        if (*x < getWidth()-1 && *y > 0) {
+            (*x)++;
+            (*y)--;
+            return 0;
+        }
+    }
+    return -1;
+}
 
 #define EDGE_DIFF 20
 vector<edge> Image::find_edges()

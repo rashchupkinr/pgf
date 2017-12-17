@@ -23,6 +23,8 @@ public:
 	// size%2==1
 	int get(Point p);
 	int get(int x, int y);
+    int getDir(int *x, int *y, int dir);
+    int getPointDir(int x, int y, int dir);
 	void set(Point p, int v);
 	void set(int x, int y, int v);
 //	PolMap *getPM()		{	return polmap;	}
